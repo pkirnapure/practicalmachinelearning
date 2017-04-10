@@ -1,0 +1,91 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Pradeep Kirnapure"
+date: "10 April 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Predicting the way exercise is done
+
+The analysis and subsequent implementation is briefly summarized below:
+
+1) Loading of the data file:
+
+The training data for different sensors was loaded from the csv file (used read.csv command)
+
+> harDataInput = read.csv(file="C:/Users/ggne0283/Desktop/Assignments/Dataset/pml-training.csv", header = TRUE, sep=",")
+
+> harData = data.frame(harDataInput[,2:160])
+
+2) Preparing the data for further analysis:
+  a)  Independent variables (predictors) for modelling were short-listed. Here in this case problem statement hinted to select the measurements related to accelerometer. So all the independent variables with names of the format \*accel\* were considered.
+  
+  b) While inspecting the data, it was realized that the independent variables with names of format \*var\*accel\* were very in-frequent and may actually be a variance of a data point in some aggregation window, as suggested by the variable name. (Tried to find variance for some data points, however could not get a variance value nearly matching the value of this parameter, hence could not confirm the hypothesis). Since these values were few in numbers, decided to drop all such variables (used subset command with select parameter with regex pattern).
+  
+> harDataSubset= subset(harData, select=c(grep("\^[ta][oc][tc][ae]l_", names(harData), value=TRUE), "classe"))
+  
+  
+  c) The training and test data set were prepared by partitioning the full input data set in 75:25 ratio (used the createDataPartition command)
+  
+> inTrainHar= createDataPartition(harDataSubset$classe, p=.75, list=FALSE)
+  
+  d) Further tried to see of there is any relation between the total_\<meas\> and accel_\<meas\>_x or accel_\<meas\>_y or accel_\<meas\>_z. (used the featurePlot command). Could not find any strong correlation amoungst these. So concluded that it is better to go with all 4 variables for each of the sensors (belt, arm, dumbell, forearm). In total 4x4=16 predictors were considered for the model.
+  
+> featurePlot(x=trainingHar[,2:4], y=trainingHar[,1], plot="pairs")
+
+> featurePlot(x=trainingHar[,6:8], y=trainingHar[,5], plot="pairs")
+
+> featurePlot(x=trainingHar[,10:12], y=trainingHar[,9], plot="pairs")
+
+> featurePlot(x=trainingHar[,14:16], y=trainingHar[,13], plot="pairs")
+  
+3) Selection of appropriate model:
+
+  a) The dependent variable in this case has descreet values (A, B,..E), so realized that right model would come from the tree family (actually tried using the glm, but it returned some error, which made me think that linear model should not be considered at all).
+  
+  b) Trained the model with the rpart (regression trees) method (used the command train) and then applied the model fit to the test set to get the predictions.
+  
+  c) Trained the model with the rf (random forest) method (used the command train) and then applied the model fit to the test set to get the predictions.
+  
+> modFitHarRf = train(classe ~., method="rf", data=trainingHar)
+
+> predHarRf = predict(modFitHarRf, newdata = testingHar)
+  
+  d) Trained the model with the gbm (generalized boosting) method (used the command train) and then applied the model fit to the test set to get the predictions.
+  
+  
+4) Evaluating the accuracy of the model
+
+  a) The accuracy of each of the model was calculated as a ratio of correct number of prediction to the total number of sample points in the test set.
+  
+> accuHarRf = (sum ( (predHarRf==testingHar\$classe)*1 ))/ (length(testingHar$classe)); 
+  
+  b) The accuracy value for the 3 models are (shown along with the print command) :
+  
+> print(accuHarRpart)
+
+> [1] 0.4212887
+
+> print(accuHarRf)
+
+> [1] 0.9463703
+
+> print(accuHarGbm)
+
+> [1] 0.8297308
+
+5) Further exploration:
+
+  a) Tried to apply stacking of models obtained from rf and gbm method. However did not find any significant improvement in the accuracy on the test set (very minor improvement at the 4th decimal place). So did not consider using the stacked model for this particular assignment.
+  
+
+## Conclusion
+The model for predicting the way the subjects did the dumbell exercise has 4*4 predictors (4 measurements from each sensors). Out of the methods (regression trees, random forest, generalized boosting) explored, random forest method gives the model fit with the maximum accuracy (i.e. 0.946). This is a recommended model to be used for this prediction problem.
+The expected out of sample error using this model is approx 5.4%.
+
+Interestingly when this model was used on the testing data set (pml-testing.csv), it gave predictions where only 1 results out of 20 results was wrong (mis-classificaiton error of 5%!). 
+
